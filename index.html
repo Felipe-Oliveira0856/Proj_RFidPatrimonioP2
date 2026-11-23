@@ -1,0 +1,428 @@
+ <!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Projeto Avaliativo Patrimônio</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
+            body {
+
+                font-family: 'Montserrat', sans-serif;
+                background-color: #d4cac6;
+                color: #E0E0E0;
+
+            }
+
+            .bg-etec-red { background-color: #de6f00; }
+            .bg-etec-darkred { background-color: #874401; }
+            .border-etec-red { border-color: #de6f00; }
+            .text-etec-red { color: #de6f00; }
+            .pulse-ring {
+                transition: all 0.3s ease;
+
+            }
+
+        </style>
+
+    </head>
+        <body class="min-h-screen flex flex-col justify-between">
+            <header class="bg-neutral-900 border-b-4 border-etec-red shadow-lg p-4">
+                <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div>
+                            <h1 class="text-xl sm:text-2xl font-extrabold tracking-wider text-white">Sistema de Detecção de Patrimônio com RFID</h1>
+                            <p class="text-xs text-neutral-400">Rastreamento de Patrimônio via ESP32 + RFID e Firebase</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div id="statusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-800 text-xs font-semibold border border-neutral-700">
+                            <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                            <span id="statusText" class="text-neutral-300">Aguardando Configuração</span>
+                        </div>
+
+                        <button onclick="toggleConfigModal()" class="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition" title="Configurar Firebase">
+                            <i class="fas fa-cog text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="max-w-6xl mx-auto w-full p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+
+                <!-- Painel de Detalhes da Última Leitura -->
+                <section class="lg:col-span-7 bg-neutral-900 rounded-2xl p-6 border border-neutral-800 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-lg font-bold text-neutral-200 flex items-center gap-2">
+                                <i class="fas fa-id-card text-etec-red"></i> Última Leitura na Porta
+                            </h2>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                            <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
+                                <span class="block text-xs text-neutral-400 font-semibold mb-1">UID DA TAG RFID</span>
+                                <span id="uidDisplay" class="text-2xl font-mono font-extrabold text-white tracking-wider">-- -- -- --</span>
+                            </div>
+                            <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
+                                <span class="block text-xs text-neutral-400 font-semibold mb-1">ITEM IDENTIFICADO</span>
+                                <span id="itemDisplay" class="text-lg font-bold text-neutral-200">Aguardando leitura...</span>
+                            </div>
+                        </div>
+
+                        <!-- Banner de Alerta de Status -->
+
+                        <div id="alertBox" class="p-4 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center gap-4 mb-6 transition-all">
+                            <div id="alertIconBox" class="w-12 h-12 rounded-xl bg-neutral-800 flex items-center justify-center text-neutral-400 text-xl shrink-0">
+                                <i class="fas fa-wifi"></i>
+                            </div>
+                            <div>
+                                <h3 id="alertTitle" class="font-bold text-neutral-200 text-sm">Sistema em Monitoramento</h3>
+                                <p id="alertDesc" class="text-xs text-neutral-400 mt-0.5">Aproxime uma tag RFID no leitor da ESP32 para validar o patrimônio.</p>
+
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Cadastro Rápido / Simulação de Teste -->
+
+                    <div class="pt-4 border-t border-neutral-800 flex flex-col sm:flex-row justify-between items-center gap-3">
+
+                        <button onclick="simularLeituraTeste()" class="w-full sm:w-auto bg-neutral-800 hover:bg-etec-red text-white text-xs font-bold px-4 py-2.5 rounded-xl transition border border-neutral-700 flex items-center justify-center gap-2">
+                            <i class="fas fa-vial"></i> Simular Leitura
+                        </button>
+                    </div>
+                </section>
+
+
+                <!-- Painel Visual da Leitora -->
+
+                <section class="lg:col-span-5 bg-neutral-900 rounded-2xl p-6 border border-neutral-800 shadow-xl flex flex-col items-center justify-center relative min-h-[300px]">
+                    <h2 class="absolute top-6 left-6 text-lg font-bold text-neutral-200 flex items-center gap-2">
+                        <i class="fas fa-broadcast-tower text-etec-red"></i> Status do Sensor
+                    </h2>
+
+                    <div class="relative w-56 h-56 flex items-center justify-center mt-6">
+                        <div id="sensorRing" class="w-44 h-44 rounded-full border-4 border-neutral-700 bg-neutral-950 flex flex-col items-center justify-center shadow-inner pulse-ring">
+                            <i id="sensorIcon" class="fas fa-rss text-5xl text-neutral-500 mb-2 transition-colors"></i>
+                            <span id="sensorLabel" class="text-xs font-extrabold uppercase tracking-widest text-neutral-400">Em Espera</span>
+
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-6 mt-4 bg-neutral-950 px-5 py-2.5 rounded-full border border-neutral-800">
+                        <div class="flex items-center gap-2">
+                            <span id="ledVermelhoUI" class="w-3 h-3 rounded-full bg-neutral-700 transition-all"></span>
+                            <span class="text-xs font-semibold text-neutral-400">LED Vermelho (Alerta)</span>
+
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="ledVerdeUI" class="w-3 h-3 rounded-full bg-neutral-700 transition-all"></span>
+                            <span class="text-xs font-semibold text-neutral-400">LED Verde (OK)</span>
+
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- Histórico de Movimentações -->
+                <section class="lg:col-span-12 bg-neutral-900 rounded-2xl p-6 border border-neutral-800 shadow-xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-neutral-200 flex items-center gap-2">
+                            <i class="fas fa-history text-etec-red"></i> Histórico de Passagens na Porta
+                        </h2>
+
+                        <button onclick="clearLogs()" class="text-xs text-neutral-400 hover:text-etec-red transition">Limpar Histórico</button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-neutral-300">
+                            <thead class="bg-neutral-950 text-xs uppercase text-neutral-400">
+                                <tr>
+                                    <th class="p-3 rounded-l-lg">Data / Hora</th>
+                                    <th class="p-3">UID da Tag</th>
+                                    <th class="p-3">Patrimônio</th>
+                                    <th class="p-3">Local Detectado</th>
+                                    <th class="p-3 rounded-r-lg">Status</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="logTableBody">
+                                <tr>
+                                    <td colspan="5" class="p-4 text-center text-neutral-500 italic">Nenhuma passagem registrada até o momento.</td>
+                                </tr>
+                            </tbody>
+
+                        </table>
+                    </div>
+                </section>
+            </main>
+
+
+            <footer class="bg-neutral-950 border-t border-neutral-800 p-4 text-center text-xs text-neutral-500">ESP32 RFID Controle de Patrimônio Escolar - Projeto Avaliativo IoT</footer>
+
+            <!-- Modal de Configuração Firebase -->
+            <div id="configModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+                <div class="bg-neutral-900 border border-neutral-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                    <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-database text-etec-red"></i> Configuração Firebase
+
+                    </h3>
+                    <p class="text-xs text-neutral-400 mb-6">Insira as credenciais do seu Realtime Database para receber as leituras da ESP32.</p>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-300 mb-1">Database URL</label>
+                            <input type="text" id="cfgDbUrl" placeholder="https://seu-projeto-default-rtdb.firebaseio.com" class="w-full bg-neutral-950 border border-neutral-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-etec-red">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-neutral-300 mb-1">API Key / Database Secret</label>
+                            <input type="password" id="cfgApiKey" placeholder="Sua API Key ou Secret" class="w-full bg-neutral-950 border border-neutral-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-etec-red">
+
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 mt-6">
+                        <button onclick="saveConfig()" class="flex-1 bg-etec-red hover:bg-etec-darkred text-white font-bold py-3 rounded-xl transition">Salvar & Conectar</button>
+                        <button onclick="toggleConfigModal()" class="px-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 rounded-xl transition">Fechar</button>
+
+                    </div>
+                </div>
+            </div>
+
+
+            <script type="module">
+                import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+                import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+                
+                let db = null;
+                let patrimonioRef = null;
+
+                const catalogoPatrimonio = {
+                    "01 02 03 04": { nome: "Carteira Escolar #01", salaOrigem: "Sala 101" },
+                    "BD 31 15 2B": { nome: "Cadeira Professor #02", salaOrigem: "Sala 102" }
+
+                };
+
+                window.toggleConfigModal = function() {
+                    const modal = document.getElementById('configModal');
+                    modal.classList.toggle('hidden');
+
+                };
+
+                window.saveConfig = function() {
+                    const url = document.getElementById('cfgDbUrl').value.trim();
+                    const key = document.getElementById('cfgApiKey').value.trim();
+
+                    if (!url) {
+                        alert('Insira a Database URL');
+                        return;
+
+                    }
+
+                    localStorage.setItem('patrimonio_db_url', url);
+                    localStorage.setItem('patrimonio_api_key', key);
+
+                    initFirebase(url, key);
+                    toggleConfigModal();
+
+                };
+
+
+                function initFirebase(databaseURL, apiKey) {
+                    try {
+
+                        const firebaseConfig = {
+                            databaseURL: databaseURL,
+                            apiKey: apiKey || "dummyKey"
+
+                        };
+
+                        const app = initializeApp(firebaseConfig, 'etecPatrimonio_' + Date.now());
+                        db = getDatabase(app);
+                        patrimonioRef = ref(db, 'patrimonio/ultimahistorico');
+
+                        updateStatus('connected', 'Conectado ao Firebase');
+                        onValue(patrimonioRef, (snapshot) => {
+
+                            const data = snapshot.val();
+                            if (data && data.uid) {
+                                processarLeitura(data.uid, data.status);
+
+                            }
+
+                        }, (error) => {
+                            updateStatus('error', 'Erro na Conexão');
+
+                        });
+
+                    } catch (err) {
+                        updateStatus('error', 'Falha ao Inicializar');
+
+                    }
+
+                }
+
+                function updateStatus(state, msg) {
+                    const dot = document.getElementById('statusDot');
+                    const text = document.getElementById('statusText');
+
+                    text.innerText = msg;
+                    dot.className = "w-2.5 h-2.5 rounded-full ";
+
+                    if (state === 'connected') {
+                        dot.className += "bg-green-500 animate-pulse";
+
+                    } else if (state === 'error') {
+                        dot.className += "bg-red-500";
+
+                    } else {
+                        dot.className += "bg-yellow-500 animate-pulse";
+
+                    }
+
+                }
+
+                function processarLeitura(uid, statusFirebase) {
+                    
+                    const uidFormatado = uid.trim().toUpperCase();
+                    const itemInfo = catalogoPatrimonio[uidFormatado] || { nome: "Móvel Não Cadastrado", salaOrigem: "Desconhecida" };
+                    const isCorreto = statusFirebase === "Correto";
+
+                    document.getElementById('uidDisplay').innerText = uidFormatado;
+                    document.getElementById('itemDisplay').innerText = `${itemInfo.nome} (${itemInfo.salaOrigem})`;
+
+                    const alertBox = document.getElementById('alertBox');
+                    const alertIconBox = document.getElementById('alertIconBox');
+                    const alertTitle = document.getElementById('alertTitle');
+                    const alertDesc = document.getElementById('alertDesc');
+
+                    const sensorRing = document.getElementById('sensorRing');
+                    const sensorIcon = document.getElementById('sensorIcon');
+                    const sensorLabel = document.getElementById('sensorLabel');
+
+                    const ledVerde = document.getElementById('ledVerdeUI');
+                    const ledVermelho = document.getElementById('ledVermelhoUI');
+
+
+                    if (isCorreto) {
+                        alertBox.className = "p-4 rounded-xl bg-green-950/40 border border-green-700 flex items-center gap-4 mb-6 transition-all";
+                        alertIconBox.className = "w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center text-white text-xl shrink-0";
+                        alertIconBox.innerHTML = '<i class="fas fa-check-circle"></i>';
+                        alertTitle.innerText = "Acesso Autorizado! Móvel na sala correta.";
+                        alertTitle.className = "font-bold text-green-400 text-sm";
+                        alertDesc.innerText = `O patrimônio pertence à Sala 101 e está no local esperado.`;
+
+                        sensorRing.className = "w-44 h-44 rounded-full border-4 border-green-500 bg-green-950/30 flex flex-col items-center justify-center shadow-[0_0_25px_rgba(34,197,94,0.4)] pulse-ring";
+                        sensorIcon.className = "fas fa-check text-5xl text-green-400 mb-2";
+                        sensorLabel.innerText = "Autorizado";
+                        sensorLabel.className = "text-xs font-extrabold uppercase tracking-widest text-green-400";
+
+                        ledVerde.className = "w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]";
+                        ledVermelho.className = "w-3 h-3 rounded-full bg-neutral-700";
+
+                    } else {
+
+                        alertBox.className = "p-4 rounded-xl bg-red-950/40 border border-etec-red flex items-center gap-4 mb-6 transition-all";
+                        alertIconBox.className = "w-12 h-12 rounded-xl bg-etec-red flex items-center justify-center text-white text-xl shrink-0";
+                        alertIconBox.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                        alertTitle.innerText = "ATENÇÃO: Móvel na sala incorreta!";
+                        alertTitle.className = "font-bold text-red-400 text-sm";
+                        alertDesc.innerText = `Divergência detectada! Origem cadastrada: ${itemInfo.salaOrigem}.`;
+
+                        sensorRing.className = "w-44 h-44 rounded-full border-4 border-etec-red bg-red-950/30 flex flex-col items-center justify-center shadow-[0_0_25px_rgba(178,34,34,0.5)] pulse-ring";
+                        sensorIcon.className = "fas fa-times text-5xl text-red-500 mb-2";
+                        sensorLabel.innerText = "Divergência";
+                        sensorLabel.className = "text-xs font-extrabold uppercase tracking-widest text-red-400";
+
+                        ledVermelho.className = "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]";
+                        ledVerde.className = "w-3 h-3 rounded-full bg-neutral-700";
+
+                    }
+
+                    addLog(uidFormatado, itemInfo.nome, "Sala 101", isCorreto ? "Correto" : "Incorreto");
+
+                }
+
+
+                function addLog(uid, item, salaDetectada, status) {
+                    const tbody = document.getElementById('logTableBody');
+                    if (tbody.children.length === 1 && tbody.children[0].cells.length === 1) {
+
+                        tbody.innerHTML = '';
+
+                    }
+
+
+                    const now = new Date();
+                    const timeStr = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
+
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-neutral-800 hover:bg-neutral-800/50 transition";
+
+                    const statusBadge = status === 'Correto'
+                        ? '<span class="px-2.5 py-1 rounded-full bg-green-950 text-green-400 border border-green-800 text-xs font-bold">Sala Correta</span>'
+                        : '<span class="px-2.5 py-1 rounded-full bg-red-950 text-red-400 border border-red-800 text-xs font-bold">Fora de Origem</span>';
+
+
+                    row.innerHTML = `
+                        <td class="p-3 font-mono text-xs">${timeStr}</td>
+                        <td class="p-3 font-mono font-bold text-white">${uid}</td>
+                        <td class="p-3 text-xs font-semibold">${item}</td>
+                        <td class="p-3 text-xs text-neutral-400">${salaDetectada}</td>
+                        <td class="p-3">${statusBadge}</td>
+
+                    `;
+
+                    tbody.insertBefore(row, tbody.firstChild);
+
+                }
+
+                window.clearLogs = function() {
+                    document.getElementById('logTableBody').innerHTML = `
+
+                        <tr>
+                            <td colspan="5" class="p-4 text-center text-neutral-500 italic">Nenhuma passagem registrada até o momento.</td>
+
+                        </tr>
+                    `;
+                };
+
+                let toggleTeste = true;
+
+                window.simularLeituraTeste = function() {
+                    if (toggleTeste) {
+                        processarLeitura("01 02 03 04", "Correto");
+
+                    } else {
+                        processarLeitura("BD 31 15 2B", "Incorreto");
+
+                    }
+                    toggleTeste = !toggleTeste;
+
+                };
+
+                window.addEventListener('DOMContentLoaded', () => {
+                    const savedUrl = localStorage.getItem('patrimonio_db_url');
+                    const savedKey = localStorage.getItem('patrimonio_api_key');
+
+
+                    if (savedUrl) {
+                        document.getElementById('cfgDbUrl').value = savedUrl;
+                        document.getElementById('cfgApiKey').value = savedKey || '';
+                        initFirebase(savedUrl, savedKey);
+
+                    } else {
+                        toggleConfigModal();
+
+                    }
+
+                });
+
+            </script>
+        </body>
+</html> 
