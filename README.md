@@ -2,6 +2,8 @@
 
 #### Projeto avaliativo prático para as aulas do Professor Lúcio, utilizando IoT como ESP32, RFid e etc. juntamente com uma interface web.
 
+#### Link: https://canva.link/0fs2292a9hfqszx
+
 #
 
 ### - Tema
